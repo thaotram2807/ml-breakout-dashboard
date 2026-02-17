@@ -233,8 +233,11 @@
 
         <div class="control-group">
             <label>Khoảng thời gian</label>
-            <input type="date" name="start" value="{{ start_date }}">
-            <input type="date" name="end" value="{{ end_date }}" style="margin-top:8px;">
+            <input type="date" name="start"
+                    value="{{ request.args.get('start', '') }}">
+
+            <input type="date" name="end"
+                    value="{{ request.args.get('end', '') }}">
         </div>
 
         <button type="submit" class="btn-update">Cập nhật biểu đồ</button>
