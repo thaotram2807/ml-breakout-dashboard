@@ -223,8 +223,8 @@ def create_figure(df: pd.DataFrame, ticker: str):
     max_vol = df["volume"].max() if not df["volume"].empty else 1
     fig.update_yaxes(range=[0, max_vol * 4], showgrid=False, showticklabels=False, secondary_y=True, row=1, col=1)
     fig.update_yaxes(range=[0, 100], tickvals=[30, 70], gridcolor="#2a2e39", griddash="dot", side="right", row=2, col=1)
-    fig.update_yaxes(gridcolor="#2a2e39", griddash="dot", side="right", row=3, col=1)
-    fig.update_yaxes(gridcolor="#2a2e39", griddash="dot", side="right", row=4, col=1)
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(gridcolor="rgba(255,255,255,0.07)")
 
     # =========================
     # AI BREAKOUT MARKER
@@ -234,16 +234,18 @@ def create_figure(df: pd.DataFrame, ticker: str):
 
         fig.add_trace(go.Scatter(
             x=breakout_points["time"],
-            y=breakout_points["close"],
-            mode="markers",
+            y=breakout_points["low"] * 0.995,
+            mode="markers+text",
+            text=["AI"] * len(breakout_points),
+            textposition="top center",
             marker=dict(
-                color="green",
-                size=9,
-                symbol="triangle-up"
+                symbol="triangle-up",
+                size=14,
+                color="#00FF99",   # xanh neon
+                line=dict(color="white", width=2)
             ),
             name="AI Breakout"
         ), row=1, col=1)
-
     # 🔥 QUAN TRỌNG: return phải nằm ngoài if
     return fig
 
