@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>{{ selected_ticker }} • FireAnt Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+    <style>
+        :root {
+            --bg: #0f0f11;
+            --panel: #16181e;
+            --border: #2a2e39;
+            --text: #d1d4dc;
+            --text-light: #787b86;
+            --accent: #2962ff;
+            --green: #26a69a;
+            --red: #ef5350;
+            --yellow: #f0b90b;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            grid-template-rows: auto 1fr;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .symbol-info {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+        }
+        .symbol {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: white;
+        }
+        .price {
+            font-size: 1.9rem;
+            font-weight: 600;
+        }
+        .change {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        .change.up { color: var(--green); }
+        .change.down { color: var(--red); }
+
+        .sidebar {
+            background: var(--panel);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            color: var(--yellow);
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--text-light);
+            margin-bottom: 6px;
+        }
+        select, input[type="date"] {
+            width: 100%;
+            padding: 9px 12px;
+            background: #1e222d;
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .btn-update {
+            width: 100%;
+            margin-top: 12px;
+            padding: 10px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-update:hover { background: #1e4bd1; }
+
+        .back-link {
+            display: block;
+            margin-top: 20px;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            text-align: center;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        .main {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tabs {
+            display: flex;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            padding: 0 12px;
+        }
+        .tab-btn {
+            padding: 12px 24px;
+            color: var(--text-light);
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom: 2px solid var(--accent);
+            background: rgba(41,98,255,0.08);
+        }
+
+        .tab-content {
+            flex: 1;
+            overflow: hidden;
+            display: none;
+        }
+        .tab-content.active { display: flex; flex-direction: column; }
+
+        #chart-container {
+            flex: 1;
+            position: relative;
+        }
+        #chart { width: 100%; height: 100%; }
+
+        .data-view {
+            padding: 20px;
+            overflow: auto;
+        }
+        .data-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .download-btn {
+            background: var(--green);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        .download-btn:hover { background: #1e8c7e; }
+
+        table.table-data {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        table.table-data th {
+            background: #1a1e25;
+            padding: 10px;
+            text-align: right;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            color: var(--text-light);
+        }
+        table.table-data td {
+            padding: 9px 10px;
+            text-align: right;
+            border-bottom: 1px solid var(--border);
+        }
+        table.table-data tr:hover { background: rgba(255,255,255,0.03); }
+    </style>
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header>
+    <div class="symbol-info">
+        <span class="symbol">{{ selected_ticker }}</span>
+        <span class="price">{{ last_close|default("—") }}</span>
+        <span class="change {{ 'up' if last_change > 0 else 'down' if last_change < 0 else '' }}">
+            {{ last_change|default("—") }} ({{ last_change_pct|default("—") }}%)
+        </span>
+    </div>
+    <div style="color:var(--text-light); font-size:0.9rem;">
+        O: {{ last_open|default("—") }} • H: {{ last_high|default("—") }} • L: {{ last_low|default("—") }}
+    </div>
+</header>
+
+<!-- ================= SIDEBAR ================= -->
+<div class="sidebar">
+    <h3><i class="fas fa-sliders-h"></i> Controls</h3>
+
+    <form method="GET" action="/dashboard/{{ filename }}">
+        <div class="control-group">
+            <label>Mã chứng khoán</label>
+            <select name="ticker">
+                {% for t in tickers %}
+                    <option value="{{ t }}" {% if t == selected_ticker %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Khoảng thời gian</label>
+            <input type="date" name="start" value="{{ start_date }}">
+            <input type="date" name="end" value="{{ end_date }}" style="margin-top:8px;">
+        </div>
+
+        <button type="submit" class="btn-update">Cập nhật biểu đồ</button>
+    </form>
+
+    <a href="/" class="back-link">← Chọn file dữ liệu khác</a>
+</div>
+
+<!-- ================= MAIN ================= -->
+<div class="main">
+
+    <div class="tabs">
+        <div class="tab-btn active" onclick="openTab('chart')">Biểu đồ</div>
+        <div class="tab-btn" onclick="openTab('data')">Dữ liệu</div>
+        <div class="tab-btn" onclick="openTab('events')">Cột mốc</div>
+        <div class="tab-btn" onclick="openTab('indicators')">Chỉ báo</div>
+    </div>
+
+    <div id="chart" class="tab-content active">
+        <div id="chart-container">
+            <div id="chart" style="width:100%; height:100%;"></div>
+        </div>
+    </div>
+
+    <div id="data" class="tab-content">
+        <div class="data-view">
+            <div class="data-header">
+                <h2 style="margin:0;">Lịch sử giá {{ selected_ticker }}</h2>
+                <a href="/download/{{ filename }}/{{ selected_ticker }}" class="download-btn">
+                    <i class="fas fa-download"></i> Tải CSV
+                </a>
+            </div>
+            <div style="max-height:calc(100vh - 180px); overflow:auto;">
+                {{ table_html | safe }}
+            </div>
+        </div>
+    </div>
+
+    <div id="events" class="tab-content">
+        <div style="padding:40px; text-align:center; color:var(--text-light);">
+            <i class="far fa-calendar-alt" style="font-size:4rem; opacity:0.4; margin-bottom:16px;"></i><br>
+            Chưa có cột mốc sự kiện cho mã này
+        </div>
+    </div>
+
+    <div id="indicators" class="tab-content">
+        <div style="padding:40px; text-align:center; color:var(--text-light);">
+            <p>Danh sách chỉ báo đang sử dụng:</p>
+            <ul style="list-style:none; text-align:left; max-width:400px; margin:20px auto;">
+                <li>• SMA 9, 20, 60</li>
+                <li>• Bollinger Bands (20,2)</li>
+                <li>• RSI (14)</li>
+                <li>• MACD (12,26,9)</li>
+                <li>• DMI/ADX (14)</li>
+                <li>• Volume SMA 9</li>
+            </ul>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // Plotly - Khởi tạo biểu đồ chính
+    var graphData = {{ graphJSON | safe }};
+    Plotly.newPlot('chart', graphData.data, graphData.layout, {
+        responsive: true,
+        displayModeBar: false,
+        scrollZoom: true
+    });
+
+    // Hàm chuyển tab
+    function openTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+        document.getElementById(tabId).classList.add('active');
+        document.querySelector(`.tab-btn[onclick="openTab('${tabId}')"]`).classList.add('active');
+
+        if (tabId === 'chart') {
+            Plotly.Plots.resize('chart');
+        }
+    }
+
+    // Resize biểu đồ khi thay đổi kích thước cửa sổ
+    window.addEventListener('resize', () => {
+        Plotly.Plots.resize('chart');
+    });
+
+    // Hàm thêm marker BUY signals
+    async function addBuySignals(ticker) {
+        try {
+            const res = await fetch(`/api/buy-signals?ticker=${ticker}`);
+            if (!res.ok) {
+                console.warn(`Không lấy được tín hiệu BUY cho ${ticker}: ${res.status}`);
+                return;
+            }
+
+            const data = await res.json();
+
+            if (!data || data.length === 0) {
+                console.log(`Không có tín hiệu BUY nào cho ${ticker}`);
+                return;
+            }
+
+            const trace = {
+                x: data.map(d => d.date),
+                y: data.map(d => d.close),
+                mode: "markers",
+                name: "BUY",
+                marker: {
+                    symbol: "triangle-up",
+                    size: 14,
+                    color: "limegreen",
+                    line: { color: "darkgreen", width: 1.5 }
+                },
+                text: data.map(d =>
+                    `P_trend: ${d.p_trend ? d.p_trend.toFixed(3) : 'N/A'}<br>` +
+                    `P_strong_up: ${d.p_strong_up ? d.p_strong_up.toFixed(3) : 'N/A'}<br>` +
+                    `P_breakout: ${d.p_breakout ? d.p_breakout.toFixed(3) : 'N/A'}`
+                ),
+                hoverinfo: "text+x+y",
+                hoverlabel: {
+                    bgcolor: "#1e222d",
+                    bordercolor: "#26a69a",
+                    font: { color: "#ffffff" }
+                }
+            };
+
+            Plotly.addTraces("chart", [trace]);
+        } catch (error) {
+            console.error("Lỗi khi thêm BUY signals:", error);
+        }
+    }
+
+    // Tự động thêm BUY signals khi trang load xong
+    document.addEventListener("DOMContentLoaded", function() {
+        addBuySignals("{{ selected_ticker }}");
+    });
+</script>
+<!-- Đặt trong <script> tag, tốt nhất là ở cuối file dashboard.html, sau khi Plotly chart đã render -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selectedTicker = "{{ selected_ticker }}";  // từ Jinja2
+    const chartDiv = document.getElementById('graph'); // id của div chứa Plotly chart
+
+    if (!selectedTicker || selectedTicker === "N/A") return;
+
+    // Fetch buy signals
+    fetch(`/api/buy-signals?ticker=${encodeURIComponent(selectedTicker)}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Không tải được tín hiệu mua');
+            return response.json();
+        })
+        .then(buyData => {
+            if (!Array.isArray(buyData) || buyData.length === 0) {
+                console.log('Không có tín hiệu BUY cho ticker này');
+                return;
+            }
+
+            // Chuẩn bị trace marker
+            const buyTrace = {
+                type: 'scatter',
+                mode: 'markers+text',
+                name: 'BUY Signal',
+                x: buyData.map(item => item.date),
+                y: buyData.map(item => item.close),
+                text: buyData.map(item => 'BUY'),
+                textposition: 'top center',
+                marker: {
+                    symbol: 'triangle-up',
+                    size: 14,
+                    color: '#00FF00',           // xanh lá
+                    line: { width: 2, color: '#006400' }
+                },
+                hovertemplate: 
+                    '<b>BUY Signal</b><br>' +
+                    'Ngày: %{x|%Y-%m-%d}<br>' +
+                    'Giá: %{y:.2f}<br>' +
+                    'P_trend: %{customdata[0]:.3f}<br>' +
+                    'P_strong_up: %{customdata[1]:.3f}<br>' +
+                    'P_breakout: %{customdata[2]:.3f}' +
+                    '<extra></extra>',
+                customdata: buyData.map(item => [
+                    item.p_trend || 'N/A',
+                    item.p_strong_up || 'N/A',
+                    item.p_breakout || 'N/A'
+                ]),
+                showlegend: true
+            };
+
+            // Thêm trace vào chart hiện có
+            Plotly.addTraces(chartDiv, [buyTrace]);
+        })
+        .catch(err => {
+            console.error('Lỗi khi tải /api/buy-signals:', err);
+        });
+});
+</script>
+</body>
+</html>
