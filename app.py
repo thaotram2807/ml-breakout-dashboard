@@ -235,13 +235,11 @@ def create_figure(df: pd.DataFrame, ticker: str):
         fig.add_trace(go.Scatter(
             x=breakout_points["time"],
             y=breakout_points["low"] * 0.995,
-            mode="markers+text",
-            text=["AI"] * len(breakout_points),
-            textposition="top center",
+            mode="markers",   # 🔥 bỏ +text
             marker=dict(
                 symbol="triangle-up",
                 size=14,
-                color="#00FF99",   # xanh neon
+                color="#00FF99",
                 line=dict(color="white", width=2)
             ),
             name="AI Breakout"
