@@ -33,7 +33,7 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 # 1. LOAD + COMPUTE INDICATORS (dùng cho dashboard)
 # =====================================================
 def load_and_compute(filepath: str) -> pd.DataFrame:
-    df = pd.read_csv(filepath)
+    df = pd.read_csv(filepath, encoding="cp1258")
     df.columns = df.columns.str.strip().str.lower()
     df["time"] = pd.to_datetime(df["time"], errors="coerce")
     df = df.dropna(subset=["time", "ticker"])
